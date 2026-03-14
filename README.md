@@ -1,6 +1,6 @@
 # Cut to the Chase
 
-An AI agent that summarizes text documents using LangChain and GPT-3.5.
+An AI agent that summarizes text documents using LangChain and GPT-3.5 and GPT-4o.
 
 ## Setup
 
