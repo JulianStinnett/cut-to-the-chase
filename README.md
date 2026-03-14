@@ -55,7 +55,7 @@ Inside that file, add this one line:
 OPENAI_API_KEY=your_openai_key_here
 ```
 
-Replace `your_openai_key_here` with the actual key Julian sent you.
+Replace `your_openai_key_here` with the actual key sent to you.
 Save the file. Do NOT commit this file to GitHub.
 
 ### Step 4 - Run the agent
