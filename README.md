@@ -18,7 +18,7 @@ The agent runs a 4-step pipeline on any article from the CNN/DailyMail dataset:
 
 ## Requirements
 
-- Python 3.10 or higher (do NOT use Python 3.14 — it has compatibility issues with LangChain)
+- Python 3.10 or higher (Python 3.14 works but may show a Pydantic compatibility warning — this is harmless and the agent runs fine)
 - An OpenAI API key with GPT-4o access
 
 ---
