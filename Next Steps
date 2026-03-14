@@ -1,0 +1,27 @@
+Steps we still need to complete.
+
+Code
+
+Add ROUGE scoring to evaluate summary quality
+Run evaluation on ~100 samples and record the scores
+Compare GPT-3.5-turbo vs GPT-4o results side by side
+
+Written Report (IEEE Format)
+
+Reformat entire project doc into IEEE two-column format
+Add Related Work section (find 3-5 papers on text summarization)
+Add Experiments & Results section with ROUGE scores and comparison table
+Add Analysis & Discussion section
+Add Conclusion & Future Work section
+Add AI Tool Disclosure section (list Claude, ChatGPT, or whatever you used)
+Add References section
+
+GitHub
+
+Push final version of agent.py with ROUGE scoring added
+Make sure README stays up to date
+
+Demo Prep
+
+Have the agent running and ready to show live
+Prepare a few example outputs to walk through
