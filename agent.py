@@ -8,7 +8,7 @@ from langchain_core.output_parsers import StrOutputParser
 load_dotenv()
 
 llm = ChatOpenAI(
-    model="gpt-4o",
+    model="gpt-4o", # We may want to downgrade to gpt-3.5 turbo when testing large samples because of token use.
     api_key=os.getenv("OPENAI_API_KEY")
 )
 
