@@ -9,15 +9,12 @@ from rouge_score import rouge_scorer
 load_dotenv()
 
 llm = ChatOpenAI(
-    model="gpt-4o", # We may want to downgrade to gpt-3.5 turbo when testing large samples because of token use.
+    model="gpt-4o",
     api_key=os.getenv("OPENAI_API_KEY")
 )
 
 # Load dataset
 dataset = load_dataset("cnn_dailymail", "3.0.0")
-sample = dataset["test"][0]
-article = sample["article"]
-reference_summary = sample["highlights"]
 
 parser = StrOutputParser()
 
@@ -45,29 +42,33 @@ critique_prompt = ChatPromptTemplate.from_template(
 )
 critique_chain = critique_prompt | llm | parser
 
-# Run the agent loop
-print("Step 1: Classifying document...")
-doc_type = classify_chain.invoke({"article": article[:500]})
-print(f"Document type: {doc_type}")
-
-print("\nStep 2: Deciding summarization strategy...")
-strategy = strategy_chain.invoke({"doc_type": doc_type})
-print(f"Strategy: {strategy}")
-
-print("\nStep 3: Summarizing...")
-summary = summarize_chain.invoke({"strategy": strategy, "article": article})
-print(f"Summary: {summary}")
-
-print("\nStep 4: Critiquing and refining...")
-final_summary = critique_chain.invoke({"article": article[:500], "summary": summary})
-print(f"\nFinal Summary: {final_summary}")
-print(f"\nReference Summary: {reference_summary}")
-
-# ROUGE Evaluation
+# ROUGE Evaluation on 75 samples
 scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
-scores = scorer.score(reference_summary, final_summary)
 
-print("\n--- ROUGE SCORES ---")
-print(f"ROUGE-1: {scores['rouge1'].fmeasure:.4f}")
-print(f"ROUGE-2: {scores['rouge2'].fmeasure:.4f}")
-print(f"ROUGE-L: {scores['rougeL'].fmeasure:.4f}")
+rouge1_scores = []
+rouge2_scores = []
+rougeL_scores = []
+
+print("Running evaluation on 75 samples...")
+
+for i in range(75):
+    sample = dataset["test"][i]
+    article = sample["article"]
+    reference = sample["highlights"]
+
+    doc_type = classify_chain.invoke({"article": article[:500]})
+    strategy = strategy_chain.invoke({"doc_type": doc_type})
+    summary = summarize_chain.invoke({"strategy": strategy, "article": article})
+    final_summary = critique_chain.invoke({"article": article[:500], "summary": summary})
+
+    scores = scorer.score(reference, final_summary)
+    rouge1_scores.append(scores['rouge1'].fmeasure)
+    rouge2_scores.append(scores['rouge2'].fmeasure)
+    rougeL_scores.append(scores['rougeL'].fmeasure)
+
+    print(f"Sample {i+1}/75 done — ROUGE-1: {scores['rouge1'].fmeasure:.4f}")
+
+print("\n--- AVERAGE ROUGE SCORES ACROSS 75 SAMPLES ---")
+print(f"ROUGE-1: {sum(rouge1_scores)/len(rouge1_scores):.4f}")
+print(f"ROUGE-2: {sum(rouge2_scores)/len(rouge2_scores):.4f}")
+print(f"ROUGE-L: {sum(rougeL_scores)/len(rougeL_scores):.4f}")
