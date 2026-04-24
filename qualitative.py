@@ -1,5 +1,4 @@
 import os
-import json
 from dotenv import load_dotenv
 from datasets import load_dataset
 from langchain_openai import ChatOpenAI
@@ -9,54 +8,41 @@ from rouge_score import rouge_scorer
 
 load_dotenv()
 
-MODEL = "gpt-4o"
+llm = ChatOpenAI(model="gpt-4o", api_key=os.getenv("OPENAI_API_KEY"))
 
-llm = ChatOpenAI(
-    model=MODEL,
-    api_key=os.getenv("OPENAI_API_KEY")
-)
-
-# Load dataset
 dataset = load_dataset("cnn_dailymail", "3.0.0")
-
 parser = StrOutputParser()
 
-# Step 1 — Classify
 classify_prompt = ChatPromptTemplate.from_template(
     "You are a document classifier. Respond with only one of: news article, research paper, email, legal document, other.\n\nWhat type of document is this?\n\n{article}"
 )
-classify_chain = classify_prompt | llm | parser
-
-# Step 2 — Decide strategy
 strategy_prompt = ChatPromptTemplate.from_template(
     "You are a summarization strategist. Given a document type, describe in one sentence the best summarization strategy.\n\nDocument type: {doc_type}"
 )
-strategy_chain = strategy_prompt | llm | parser
-
-# Step 3 — Summarize
 summarize_prompt = ChatPromptTemplate.from_template(
     "You are a document summarization assistant.\n\nUsing this strategy: {strategy}\n\nSummarize the following document in 3-5 sentences:\n\n{article}"
 )
-summarize_chain = summarize_prompt | llm | parser
-
-# Step 4 — Critique and refine
 critique_prompt = ChatPromptTemplate.from_template(
     "You are a summarization quality reviewer. Review this summary and improve it if needed.\n\nOriginal article (first 500 chars): {article}\n\nSummary to review: {summary}"
 )
+
+classify_chain = classify_prompt | llm | parser
+strategy_chain = strategy_prompt | llm | parser
+summarize_chain = summarize_prompt | llm | parser
 critique_chain = critique_prompt | llm | parser
 
-# ROUGE Evaluation on 75 samples
 scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
 
-rouge1_scores = []
-rouge2_scores = []
-rougeL_scores = []
-per_sample = []
+# Indices chosen to surface a range of outcomes.
+# Adjust these after seeing scores to swap in better success/failure examples.
+SAMPLE_INDICES = [0, 1, 2, 3, 4]
 
-print("Running evaluation on 25 samples...")
+print("=" * 70)
+print("  QUALITATIVE EVALUATION — 5 Example Outputs (GPT-4o)")
+print("=" * 70)
 
-for i in range(25):
-    sample = dataset["test"][i]
+for idx in SAMPLE_INDICES:
+    sample = dataset["test"][idx]
     article = sample["article"]
     reference = sample["highlights"]
 
@@ -66,35 +52,25 @@ for i in range(25):
     final_summary = critique_chain.invoke({"article": article[:500], "summary": summary})
 
     scores = scorer.score(reference, final_summary)
-    rouge1_scores.append(scores['rouge1'].fmeasure)
-    rouge2_scores.append(scores['rouge2'].fmeasure)
-    rougeL_scores.append(scores['rougeL'].fmeasure)
-    per_sample.append({
-        "sample": i + 1,
-        "rouge1": round(scores['rouge1'].fmeasure, 4),
-        "rouge2": round(scores['rouge2'].fmeasure, 4),
-        "rougeL": round(scores['rougeL'].fmeasure, 4),
-    })
+    r1 = scores['rouge1'].fmeasure
+    r2 = scores['rouge2'].fmeasure
+    rL = scores['rougeL'].fmeasure
 
-    print(f"Sample {i+1}/25 done — ROUGE-1: {scores['rouge1'].fmeasure:.4f}")
+    # Label based on ROUGE-1 threshold
+    if r1 >= 0.40:
+        verdict = "SUCCESS"
+    elif r1 >= 0.25:
+        verdict = "PARTIAL"
+    else:
+        verdict = "FAILURE"
 
-avg_r1 = sum(rouge1_scores) / len(rouge1_scores)
-avg_r2 = sum(rouge2_scores) / len(rouge2_scores)
-avg_rL = sum(rougeL_scores) / len(rougeL_scores)
+    print(f"\n{'─' * 70}")
+    print(f"  Sample #{idx + 1}  |  {verdict}  |  ROUGE-1: {r1:.4f}  ROUGE-2: {r2:.4f}  ROUGE-L: {rL:.4f}")
+    print(f"{'─' * 70}")
+    print(f"\nDoc type  : {doc_type}")
+    print(f"Strategy  : {strategy}")
+    print(f"\nARTICLE (first 300 chars):\n{article[:300]}...")
+    print(f"\nREFERENCE SUMMARY:\n{reference}")
+    print(f"\nAGENT SUMMARY:\n{final_summary}")
 
-print("\n--- AVERAGE ROUGE SCORES ACROSS 25 SAMPLES ---")
-print(f"ROUGE-1: {avg_r1:.4f}")
-print(f"ROUGE-2: {avg_r2:.4f}")
-print(f"ROUGE-L: {avg_rL:.4f}")
-
-results = {
-    "model": MODEL,
-    "num_samples": 25,
-    "rouge1": round(avg_r1, 4),
-    "rouge2": round(avg_r2, 4),
-    "rougeL": round(avg_rL, 4),
-    "per_sample": per_sample,
-}
-with open("results_gpt4o.json", "w") as f:
-    json.dump(results, f, indent=2)
-print("\nResults saved to results_gpt4o.json")
+print(f"\n{'=' * 70}\n")
